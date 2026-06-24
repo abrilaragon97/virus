@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VirusSim — Propagación de Virus Informáticos</title>
+  <meta name="description" content="Simulación interactiva de propagación de virus informáticos usando ecuaciones diferenciales SIR/SEIR con datos históricos de WannaCry e ILOVEYOU." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════ PARTICLES BG ══════════════════════════════ -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- ══════════════════════════════ HEADER ══════════════════════════════ -->
+<header class="site-header">
+  <div class="header-brand">
+    <div class="virus-icon-wrap">
+      <svg class="virus-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="30" cy="30" r="14" fill="none" stroke="#ff3c6e" stroke-width="2.5"/>
+        <circle cx="30" cy="30" r="8" fill="#ff3c6e" opacity="0.25"/>
+        <circle cx="30" cy="30" r="4" fill="#ff3c6e"/>
+        <!-- Spikes -->
+        <line x1="30" y1="4" x2="30" y2="14" stroke="#ff3c6e" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="30" cy="3" r="2" fill="#ff3c6e"/>
+        <line x1="30" y1="46" x2="30" y2="56" stroke="#ff3c6e" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="30" cy="57" r="2" fill="#ff3c6e"/>
+        <line x1="4" y1="30" x2="14" y2="30" stroke="#ff3c6e" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="3" cy="30" r="2" fill="#ff3c6e"/>
+        <line x1="46" y1="30" x2="56" y2="30" stroke="#ff3c6e" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="57" cy="30" r="2" fill="#ff3c6e"/>
+        <line x1="10" y1="10" x2="18" y2="18" stroke="#ff3c6e" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="8" cy="8" r="2" fill="#ff3c6e"/>
+        <line x1="50" y1="50" x2="42" y2="42" stroke="#ff3c6e" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="52" cy="52" r="2" fill="#ff3c6e"/>
+        <line x1="50" y1="10" x2="42" y2="18" stroke="#ff3c6e" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="52" cy="8" r="2" fill="#ff3c6e"/>
+        <line x1="10" y1="50" x2="18" y2="42" stroke="#ff3c6e" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="8" cy="52" r="2" fill="#ff3c6e"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="brand-title">VirusSim</h1>
+      <p class="brand-sub">Propagación de Virus Informáticos</p>
+    </div>
+  </div>
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="simulation" id="btn-simulation">
+      <span class="tab-icon">⚡</span> Simulación
+    </button>
+    <button class="tab-btn" data-tab="network" id="btn-network">
+      <span class="tab-icon">🌐</span> Red Visual
+    </button>
+    <button class="tab-btn" data-tab="history" id="btn-history">
+      <span class="tab-icon">📜</span> Histórico
+    </button>
+    <button class="tab-btn" data-tab="model" id="btn-model">
+      <span class="tab-icon">∂</span> Modelo &amp; Ecuaciones
+    </button>
+  </nav>
+</header>
+
+<!-- ══════════════════════════════ ALERT TICKER ══════════════════════════════ -->
+<div class="alert-ticker">
+  <span class="ticker-label">⚠ ALERTA</span>
+  <div class="ticker-track">
+    <span id="tickerText">Iniciando sistema de monitoreo de amenazas cibernéticas...</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ MAIN CONTENT ══════════════════════════════ -->
+<main class="main-content">
+
+  <!-- ══════════ TAB: SIMULACIÓN ══════════ -->
+  <section class="tab-panel active" id="tab-simulation">
+
+    <!-- Dashboard de métricas en tiempo real -->
+    <div class="metrics-row">
+      <div class="metric-card susceptible">
+        <div class="metric-icon">🛡️</div>
+        <div class="metric-value" id="metS">0</div>
+        <div class="metric-label">Susceptibles</div>
+        <div class="metric-bar"><div class="metric-fill" id="fillS" style="background:#4ade80"></div></div>
+      </div>
+      <div class="metric-card exposed">
+        <div class="metric-icon">⚠️</div>
+        <div class="metric-value" id="metE">0</div>
+        <div class="metric-label">Expuestos</div>
+        <div class="metric-bar"><div class="metric-fill" id="fillE" style="background:#facc15"></div></div>
+      </div>
+      <div class="metric-card infected">
+        <div class="metric-icon">🦠</div>
+        <div class="metric-value" id="metI">0</div>
+        <div class="metric-label">Infectados</div>
+        <div class="metric-bar"><div class="metric-fill" id="fillI" style="background:#ff3c6e"></div></div>
+      </div>
+      <div class="metric-card recovered">
+        <div class="metric-icon">✅</div>
+        <div class="metric-value" id="metR">0</div>
+        <div class="metric-label">Recuperados</div>
+        <div class="metric-bar"><div class="metric-fill" id="fillR" style="background:#60a5fa"></div></div>
+      </div>
+    </div>
+
+    <!-- Panel de control + Gráfica principal -->
+    <div class="sim-layout">
+
+      <!-- Panel de control izquierdo -->
+      <aside class="control-panel">
+        <h2 class="panel-title">⚙ Control de Simulación</h2>
+
+        <div class="preset-section">
+          <label class="ctrl-label">Virus Histórico</label>
+          <div class="preset-btns">
+            <button class="preset-btn active" id="presetWannaCry" onclick="loadPreset('wannacry')">WannaCry</button>
+            <button class="preset-btn" id="presetILY" onclick="loadPreset('iloveyou')">ILOVEYOU</button>
+            <button class="preset-btn" id="presetMydoom" onclick="loadPreset('mydoom')">Mydoom</button>
+            <button class="preset-btn" id="presetCustom" onclick="loadPreset('custom')">Personalizado</button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <label class="ctrl-label">N — Población total
+            <span class="ctrl-val" id="valN">10,000</span>
+          </label>
+          <input type="range" class="slider" id="slN" min="1000" max="100000" step="1000" value="10000" />
+        </div>
+
+        <div class="slider-group">
+          <label class="ctrl-label">I₀ — Infectados iniciales
+            <span class="ctrl-val" id="valI0">1</span>
+          </label>
+          <input type="range" class="slider" id="slI0" min="1" max="100" step="1" value="1" />
+        </div>
+
+        <div class="slider-group">
+          <label class="ctrl-label">β — Tasa de infección
+            <span class="ctrl-val" id="valBeta">0.35</span>
+          </label>
+          <input type="range" class="slider" id="slBeta" min="0.01" max="2.0" step="0.01" value="0.35" />
+        </div>
+
+        <div class="slider-group">
+          <label class="ctrl-label">σ — Tasa de incubación
+            <span class="ctrl-val" id="valSigma">0.20</span>
+          </label>
+          <input type="range" class="slider" id="slSigma" min="0.01" max="1.0" step="0.01" value="0.20" />
+        </div>
+
+        <div class="slider-group">
+          <label class="ctrl-label">γ — Tasa de recuperación
+            <span class="ctrl-val" id="valGamma">0.10</span>
+          </label>
+          <input type="range" class="slider" id="slGamma" min="0.01" max="1.0" step="0.01" value="0.10" />
+        </div>
+
+        <div class="slider-group">
+          <label class="ctrl-label">δ — Tasa de mortalidad (sistemas)
+            <span class="ctrl-val" id="valDelta">0.005</span>
+          </label>
+          <input type="range" class="slider" id="slDelta" min="0" max="0.1" step="0.001" value="0.005" />
+        </div>
+
+        <div class="slider-group">
+          <label class="ctrl-label">Días a simular
+            <span class="ctrl-val" id="valDays">180</span>
+          </label>
+          <input type="range" class="slider" id="slDays" min="30" max="730" step="10" value="180" />
+        </div>
+
+        <div class="r0-display">
+          <span class="r0-label">R₀ (Número reproductivo básico)</span>
+          <span class="r0-value" id="r0val">3.50</span>
+          <div class="r0-bar-wrap">
+            <div class="r0-bar-fill" id="r0bar"></div>
+            <span class="r0-threshold">Umbral epidémico: 1.0</span>
+          </div>
+        </div>
+
+        <div class="sim-btns">
+          <button class="btn-primary" id="btnRun" onclick="runSimulation()">▶ Ejecutar</button>
+          <button class="btn-secondary" onclick="resetSimulation()">↺ Reiniciar</button>
+        </div>
+
+        <div class="speed-ctrl">
+          <label class="ctrl-label">Velocidad animación</label>
+          <div class="speed-btns">
+            <button class="speed-btn" onclick="setSpeed(0.5)">×0.5</button>
+            <button class="speed-btn active" onclick="setSpeed(1)">×1</button>
+            <button class="speed-btn" onclick="setSpeed(2)">×2</button>
+            <button class="speed-btn" onclick="setSpeed(4)">×4</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Gráfica principal -->
+      <div class="chart-area">
+        <div class="chart-header">
+          <h2 class="chart-title">Dinámica de Propagación SEIR</h2>
+          <div class="time-indicator">
+            <span class="time-label">Día:</span>
+            <span class="time-value" id="currentDay">0</span>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="mainChart"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span class="leg-item"><span class="leg-dot" style="background:#4ade80"></span>Susceptibles</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#facc15"></span>Expuestos</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#ff3c6e"></span>Infectados</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#60a5fa"></span>Recuperados</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#c084fc"></span>Muertos</span>
+        </div>
+
+        <!-- Gráfica de tasa de infección diaria -->
+        <div class="chart-wrap mini-chart-wrap">
+          <h3 class="mini-chart-title">Nuevas Infecciones por Día (Δ Infectados)</h3>
+          <canvas id="deltaChart"></canvas>
+        </div>
+
+        <!-- Peak info -->
+        <div class="peak-info" id="peakInfo" style="display:none">
+          <div class="peak-card">
+            <span class="peak-label">📈 Pico de infección</span>
+            <span class="peak-val" id="peakDay">—</span>
+          </div>
+          <div class="peak-card">
+            <span class="peak-label">🦠 Máx. infectados</span>
+            <span class="peak-val" id="peakMax">—</span>
+          </div>
+          <div class="peak-card">
+            <span class="peak-label">💀 Sistemas perdidos</span>
+            <span class="peak-val" id="totalDead">—</span>
+          </div>
+          <div class="peak-card">
+            <span class="peak-label">🛡 % Inmunizados</span>
+            <span class="peak-val" id="pctImmune">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ TAB: RED VISUAL ══════════ -->
+  <section class="tab-panel" id="tab-network">
+    <div class="network-layout">
+      <div class="network-controls">
+        <h2 class="panel-title">🌐 Red de Propagación</h2>
+        <p class="network-desc">Visualización en tiempo real de la propagación del virus en una red de nodos (computadoras). Cada nodo representa un equipo.</p>
+        <div class="slider-group">
+          <label class="ctrl-label">Nodos en la red <span class="ctrl-val" id="valNodes">80</span></label>
+          <input type="range" class="slider" id="slNodes" min="20" max="200" step="10" value="80" oninput="document.getElementById('valNodes').textContent=this.value" />
+        </div>
+        <div class="slider-group">
+          <label class="ctrl-label">Velocidad propagación <span class="ctrl-val" id="valNetSpeed">3</span></label>
+          <input type="range" class="slider" id="slNetSpeed" min="1" max="10" step="1" value="3" oninput="document.getElementById('valNetSpeed').textContent=this.value" />
+        </div>
+        <button class="btn-primary" onclick="startNetworkSim()">▶ Iniciar Red</button>
+        <button class="btn-secondary" onclick="resetNetwork()">↺ Resetear</button>
+        <div class="net-legend">
+          <div class="net-leg-row"><span class="net-dot" style="background:#4ade80"></span> Susceptible</div>
+          <div class="net-leg-row"><span class="net-dot" style="background:#facc15"></span> Expuesto</div>
+          <div class="net-leg-row"><span class="net-dot" style="background:#ff3c6e"></span> Infectado</div>
+          <div class="net-leg-row"><span class="net-dot" style="background:#60a5fa"></span> Recuperado</div>
+          <div class="net-leg-row"><span class="net-dot" style="background:#6b7280"></span> Sistema caído</div>
+        </div>
+        <div class="net-stats">
+          <div class="net-stat-row"><span>Infectados activos:</span><span id="netInfected" class="net-stat-val">0</span></div>
+          <div class="net-stat-row"><span>Recuperados:</span><span id="netRecovered" class="net-stat-val">0</span></div>
+          <div class="net-stat-row"><span>Caídos:</span><span id="netDead" class="net-stat-val">0</span></div>
+          <div class="net-stat-row"><span>Paso:</span><span id="netStep" class="net-stat-val">0</span></div>
+        </div>
+      </div>
+      <div class="network-canvas-wrap">
+        <canvas id="networkCanvas"></canvas>
+        <div class="network-overlay" id="networkOverlay">
+          <div class="overlay-content">
+            <div class="overlay-virus-icon">🦠</div>
+            <p>Configura los parámetros y presiona<br><strong>▶ Iniciar Red</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ TAB: HISTÓRICO ══════════ -->
+  <section class="tab-panel" id="tab-history">
+    <div class="history-layout">
+      <h2 class="section-title">📜 Virus Históricos — Casos Reales</h2>
+      <p class="section-desc">Datos históricos de los virus informáticos más devastadores de la historia, modelados con ecuaciones diferenciales SEIR.</p>
+
+      <div class="timeline">
+
+        <!-- WannaCry -->
+        <div class="timeline-item wannacry" onclick="selectHistoricVirus('wannacry')">
+          <div class="tl-year">2017</div>
+          <div class="tl-connector">
+            <div class="tl-dot wannacry-dot"></div>
+          </div>
+          <div class="tl-content">
+            <div class="tl-header">
+              <h3 class="tl-title">🔒 WannaCry</h3>
+              <span class="tl-badge danger">Ransomware</span>
+            </div>
+            <p class="tl-desc">El ransomware más devastador de la historia moderna. Explotó la vulnerabilidad EternalBlue (NSA) en Windows SMB para propagarse a más de 200,000 sistemas en 150 países en solo 4 días.</p>
+            <div class="tl-stats">
+              <div class="tl-stat"><span class="tl-num">200K+</span><span class="tl-slabel">Sistemas</span></div>
+              <div class="tl-stat"><span class="tl-num">150</span><span class="tl-slabel">Países</span></div>
+              <div class="tl-stat"><span class="tl-num">4 días</span><span class="tl-slabel">Para pico</span></div>
+              <div class="tl-stat"><span class="tl-num">$4B</span><span class="tl-slabel">Daños</span></div>
+            </div>
+            <button class="tl-btn" onclick="loadPresetAndSwitch('wannacry')">Simular este virus →</button>
+          </div>
+        </div>
+
+        <!-- ILOVEYOU -->
+        <div class="timeline-item iloveyou" onclick="selectHistoricVirus('iloveyou')">
+          <div class="tl-year">2000</div>
+          <div class="tl-connector">
+            <div class="tl-dot iloveyou-dot"></div>
+          </div>
+          <div class="tl-content">
+            <div class="tl-header">
+              <h3 class="tl-title">💌 ILOVEYOU</h3>
+              <span class="tl-badge critical">Worm</span>
+            </div>
+            <p class="tl-desc">Un gusano que llegó por email con el asunto "ILOVEYOU". Infectó más de 50 millones de computadoras en menos de 10 días. Se propagó replicándose en todos los contactos de Outlook.</p>
+            <div class="tl-stats">
+              <div class="tl-stat"><span class="tl-num">50M+</span><span class="tl-slabel">Sistemas</span></div>
+              <div class="tl-stat"><span class="tl-num">10 días</span><span class="tl-slabel">Para pico</span></div>
+              <div class="tl-stat"><span class="tl-num">80%</span><span class="tl-slabel">Tasa ataque</span></div>
+              <div class="tl-stat"><span class="tl-num">$10B</span><span class="tl-slabel">Daños</span></div>
+            </div>
+            <button class="tl-btn" onclick="loadPresetAndSwitch('iloveyou')">Simular este virus →</button>
+          </div>
+        </div>
+
+        <!-- Mydoom -->
+        <div class="timeline-item mydoom" onclick="selectHistoricVirus('mydoom')">
+          <div class="tl-year">2004</div>
+          <div class="tl-connector">
+            <div class="tl-dot mydoom-dot"></div>
+          </div>
+          <div class="tl-content">
+            <div class="tl-header">
+              <h3 class="tl-title">📧 Mydoom</h3>
+              <span class="tl-badge warning">Email Worm</span>
+            </div>
+            <p class="tl-desc">El gusano de correo más rápido de la historia. En su pico, uno de cada 12 emails en Internet era Mydoom. Se estima que infectó entre 1-2 millones de equipos en días.</p>
+            <div class="tl-stats">
+              <div class="tl-stat"><span class="tl-num">2M+</span><span class="tl-slabel">Sistemas</span></div>
+              <div class="tl-stat"><span class="tl-num">1 de 12</span><span class="tl-slabel">Emails</span></div>
+              <div class="tl-stat"><span class="tl-num">25%</span><span class="tl-slabel">Tráfico red</span></div>
+              <div class="tl-stat"><span class="tl-num">$38B</span><span class="tl-slabel">Daños</span></div>
+            </div>
+            <button class="tl-btn" onclick="loadPresetAndSwitch('mydoom')">Simular este virus →</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Gráfica comparativa histórica -->
+      <div class="history-chart-section">
+        <h3 class="chart-title">Comparativa de Propagación: Datos Históricos vs Modelo SEIR</h3>
+        <div class="chart-wrap">
+          <canvas id="historyChart"></canvas>
+        </div>
+        <p class="chart-note">* Los puntos representan datos históricos estimados. Las curvas son el ajuste del modelo SEIR con parámetros calibrados.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ TAB: MODELO & ECUACIONES ══════════ -->
+  <section class="tab-panel" id="tab-model">
+    <div class="model-layout">
+      <h2 class="section-title">∂ Modelo Matemático SEIR</h2>
+      <p class="section-desc">Marco matemático que describe la propagación de virus informáticos mediante un sistema de ecuaciones diferenciales ordinarias.</p>
+
+      <!-- Sistema SEIR -->
+      <div class="model-section">
+        <h3 class="model-section-title">1. Sistema de Ecuaciones Diferenciales (SEIR)</h3>
+        <div class="eq-card">
+          <div class="eq-name">Compartimento S — Susceptibles</div>
+          <div class="eq-formula" id="eq1"></div>
+          <p class="eq-desc">Representa los equipos conectados a la red que aún no han sido infectados y son vulnerables al virus. La tasa de salida depende del contacto con infectados.</p>
+        </div>
+        <div class="eq-card">
+          <div class="eq-name">Compartimento E — Expuestos (Incubación)</div>
+          <div class="eq-formula" id="eq2"></div>
+          <p class="eq-desc">Equipos que han recibido el virus pero aún no lo manifiestan activamente (archivo ejecutado pero no completamente instalado). σ es la tasa de progresión a infectado.</p>
+        </div>
+        <div class="eq-card">
+          <div class="eq-name">Compartimento I — Infectados</div>
+          <div class="eq-formula" id="eq3"></div>
+          <p class="eq-desc">Equipos con el virus activo, capaces de propagarlo. γ es la tasa de recuperación (parche aplicado) y δ la tasa de sistemas que no se pueden recuperar.</p>
+        </div>
+        <div class="eq-card">
+          <div class="eq-name">Compartimento R — Recuperados</div>
+          <div class="eq-formula" id="eq4"></div>
+          <p class="eq-desc">Equipos que han sido desinfectados y tienen parches de seguridad aplicados. Se asumen inmunes a reinfección (en el modelo simplificado).</p>
+        </div>
+        <div class="eq-card dead-eq">
+          <div class="eq-name">Compartimento D — Sistemas Caídos</div>
+          <div class="eq-formula" id="eq5"></div>
+          <p class="eq-desc">Equipos que no pudieron ser recuperados (daño permanente, borrado de datos, hardware comprometido). δ modela la "mortalidad" del sistema.</p>
+        </div>
+      </div>
+
+      <!-- Número reproductivo -->
+      <div class="model-section">
+        <h3 class="model-section-title">2. Número Reproductivo Básico R₀</h3>
+        <div class="eq-card highlight-card">
+          <div class="eq-formula" id="eqR0"></div>
+          <p class="eq-desc">R₀ es el número promedio de nuevos equipos que un equipo infectado puede comprometer durante su período de infección en una red completamente susceptible. Si R₀ &gt; 1, la epidemia se propaga exponencialmente.</p>
+        </div>
+        <div class="r0-table">
+          <table class="eq-table">
+            <thead>
+              <tr><th>Virus</th><th>β</th><th>γ</th><th>R₀ estimado</th><th>Interpretación</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>WannaCry (2017)</td><td>0.35</td><td>0.10</td><td class="r0-cell danger">3.5</td><td>Alta propagación en redes SMB sin parchear</td></tr>
+              <tr><td>ILOVEYOU (2000)</td><td>1.80</td><td>0.15</td><td class="r0-cell critical">12.0</td><td>Explosivo: se replicaba en toda la libreta de contactos</td></tr>
+              <tr><td>Mydoom (2004)</td><td>0.90</td><td>0.12</td><td class="r0-cell danger">7.5</td><td>Rápida propagación por email masivo</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Método numérico -->
+      <div class="model-section">
+        <h3 class="model-section-title">3. Método de Solución Numérica (Runge-Kutta 4to Orden)</h3>
+        <div class="eq-card">
+          <div class="eq-formula" id="eqRK1"></div>
+          <p class="eq-desc">Siendo <em>f</em> el sistema de EDOs del modelo SEIR. RK4 ofrece un error de truncamiento de O(h⁵) por paso, siendo adecuado para la precisión requerida en modelos epidémicos.</p>
+        </div>
+        <div class="rk4-steps">
+          <div class="rk4-step">
+            <div class="rk4-step-num">k₁</div>
+            <div class="rk4-step-eq" id="eqK1"></div>
+          </div>
+          <div class="rk4-step">
+            <div class="rk4-step-num">k₂</div>
+            <div class="rk4-step-eq" id="eqK2"></div>
+          </div>
+          <div class="rk4-step">
+            <div class="rk4-step-num">k₃</div>
+            <div class="rk4-step-eq" id="eqK3"></div>
+          </div>
+          <div class="rk4-step">
+            <div class="rk4-step-num">k₄</div>
+            <div class="rk4-step-eq" id="eqK4"></div>
+          </div>
+          <div class="rk4-final">
+            <div class="eq-formula" id="eqRKFinal"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Condiciones iniciales -->
+      <div class="model-section">
+        <h3 class="model-section-title">4. Condiciones Iniciales y Conservación</h3>
+        <div class="eq-card">
+          <div class="eq-formula" id="eqIC"></div>
+          <p class="eq-desc">La suma total de todos los compartimentos permanece constante (igual a N) en todo tiempo, garantizando la conservación de la población modelada.</p>
+        </div>
+        <div class="conservation-visual">
+          <div class="cons-bar">
+            <div class="cons-seg" id="consS" style="background:#4ade80;width:90%">S</div>
+            <div class="cons-seg" id="consE" style="background:#facc15;width:3%">E</div>
+            <div class="cons-seg" id="consI" style="background:#ff3c6e;width:1%">I</div>
+            <div class="cons-seg" id="consR" style="background:#60a5fa;width:5%">R</div>
+            <div class="cons-seg" id="consD" style="background:#6b7280;width:1%">D</div>
+          </div>
+          <p class="cons-label">S + E + I + R + D = N (Constante)</p>
+        </div>
+      </div>
+
+      <!-- Parámetros -->
+      <div class="model-section">
+        <h3 class="model-section-title">5. Tabla de Parámetros del Modelo</h3>
+        <table class="eq-table params-table">
+          <thead>
+            <tr><th>Símbolo</th><th>Nombre</th><th>Unidades</th><th>Interpretación en ciberseguridad</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>N</strong></td><td>Población total</td><td>Equipos</td><td>Total de nodos en la red objetivo</td></tr>
+            <tr><td><strong>β</strong></td><td>Tasa de transmisión</td><td>contactos⁻¹·día⁻¹</td><td>Efectividad del vector de ataque (email, SMB, exploit)</td></tr>
+            <tr><td><strong>σ</strong></td><td>Tasa de incubación</td><td>día⁻¹</td><td>Velocidad de activación del payload (1/período de latencia)</td></tr>
+            <tr><td><strong>γ</strong></td><td>Tasa de recuperación</td><td>día⁻¹</td><td>Rapidez de aplicación de parches y desinfección</td></tr>
+            <tr><td><strong>δ</strong></td><td>Tasa de mortalidad</td><td>día⁻¹</td><td>Fracción de sistemas con daño irreversible (ransomware)</td></tr>
+            <tr><td><strong>R₀</strong></td><td>N. reproductivo básico</td><td>adimensional</td><td>Potencial epidémico del virus en la red</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Live solver -->
+      <div class="model-section">
+        <h3 class="model-section-title">6. Solución Numérica en Vivo</h3>
+        <p class="eq-desc">Modifica los parámetros en la pestaña de Simulación para ver la solución calculada con RK4. La gráfica siguiente muestra el estado actual del solver.</p>
+        <div class="chart-wrap">
+          <canvas id="modelChart"></canvas>
+        </div>
+        <div class="solver-info" id="solverInfo">
+          <div class="solver-stat"><span>Pasos RK4:</span><span id="rk4Steps">—</span></div>
+          <div class="solver-stat"><span>h (step size):</span><span id="rk4H">1.0 día</span></div>
+          <div class="solver-stat"><span>Error estimado:</span><span id="rk4Err">O(h⁵)</span></div>
+          <div class="solver-stat"><span>Tiempo cómputo:</span><span id="rk4Time">—</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- ══════════════════════════════ FOOTER ══════════════════════════════ -->
+<footer class="site-footer">
+  <p>VirusSim — Modelado matemático de propagación de virus informáticos con ecuaciones diferenciales SEIR · RK4</p>
+  <p class="footer-note">Datos históricos: WannaCry (2017) · ILOVEYOU (2000) · Mydoom (2004) — Solo con fines académicos y educativos.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
